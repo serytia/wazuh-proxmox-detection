@@ -1,0 +1,51 @@
+<!-- Proxmox VE detection pack - regles (plage locale 100200+) -->
+<!-- S'appuie sur la regle officielle 87200 (decoded_as pvedaemon). -->
+
+<group name="proxmox-ve,proxmox-pack,">
+
+  <!-- Suppression VM/CT (detectee des l'initiation de la tache) -->
+  <rule id="100210" level="8">
+    <if_sid>87200</if_sid>
+    <field name="pve_task" type="pcre2">^(qmdestroy|vzdestroy)$</field>
+    <description>Proxmox VE: suppression de VM/CT $(pve_vmid) par $(dstuser)</description>
+    <mitre><id>T1485</id></mitre>
+    <group>pve_destroy,</group>
+  </rule>
+
+  <!-- Suppressions multiples correlees (meme utilisateur) -> ransomware/insider -->
+  <rule id="100211" level="12" frequency="4" timeframe="180">
+    <if_matched_sid>100210</if_matched_sid>
+    <same_user />
+    <description>Proxmox VE: suppressions multiples de VM/CT par $(dstuser) - possible ransomware/insider</description>
+    <mitre><id>T1485</id></mitre>
+    <group>pve_destroy,</group>
+  </rule>
+
+  <!-- Echec de sauvegarde vzdump (statut != OK) -->
+  <rule id="100220" level="8">
+    <if_sid>87200</if_sid>
+    <field name="pve_task">^vzdump$</field>
+    <field name="pve_status" type="pcre2">^(?!OK$).+</field>
+    <description>Proxmox VE: ECHEC de sauvegarde (vzdump) VM/CT $(pve_vmid) - statut: $(pve_status)</description>
+    <mitre><id>T1490</id></mitre>
+    <group>pve_backup_failed,</group>
+  </rule>
+
+  <!-- Sauvegarde vzdump terminee OK -->
+  <rule id="100221" level="3">
+    <if_sid>87200</if_sid>
+    <field name="pve_task">^vzdump$</field>
+    <field name="pve_status">^OK$</field>
+    <description>Proxmox VE: sauvegarde (vzdump) VM/CT $(pve_vmid) terminee OK</description>
+    <group>pve_backup_ok,</group>
+  </rule>
+
+  <!-- Acces console / shell interactif -->
+  <rule id="100230" level="6">
+    <if_sid>87200</if_sid>
+    <field name="pve_task" type="pcre2">^(vncshell|vncproxy|termproxy|spiceshell|spiceproxy)$</field>
+    <description>Proxmox VE: ouverture de console/shell ($(pve_task)) par $(dstuser)</description>
+    <mitre><id>T1021</id></mitre>
+  </rule>
+
+</group>

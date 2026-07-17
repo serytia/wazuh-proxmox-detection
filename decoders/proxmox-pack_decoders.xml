@@ -1,0 +1,17 @@
+<!-- Proxmox VE detection pack - decodeurs des taches UPID -->
+<!-- Enfants du decodeur officiel "pvedaemon" (fourni d'origine avec Wazuh). -->
+<!-- Compatible Wazuh 4.x (valide sur 4.14.6). -->
+
+<decoder name="pve-task-start">
+  <parent>pvedaemon</parent>
+  <prematch>starting task UPID:</prematch>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):</regex>
+  <order>pve_node,pve_task,pve_vmid,user,pve_realm</order>
+</decoder>
+
+<decoder name="pve-task-end">
+  <parent>pvedaemon</parent>
+  <prematch>end task UPID:</prematch>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):\s+(.+)$</regex>
+  <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
+</decoder>
