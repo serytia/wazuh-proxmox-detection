@@ -1,17 +1,47 @@
-<!-- Proxmox VE detection pack - decodeurs des taches UPID -->
-<!-- Enfants du decodeur officiel "pvedaemon" (fourni d'origine avec Wazuh). -->
-<!-- Compatible Wazuh 4.x (valide sur 4.14.6). -->
+<!-- Proxmox VE detection pack - decodeurs -->
+<!-- Les taches Proxmox sont journalisees sous des program_name differents selon l'origine
+     (verifie sur Proxmox VE 9.2). Il faut donc DEUX voies de decodage :
+       - UI / API web -> program_name "pvedaemon" (decodeur officiel existant) : on greffe des enfants dessus.
+       - CLI pct/qm, vzdump (backups, y c. planifies), pvescheduler/pvesr : nouveau parent dedie. -->
 
-<decoder name="pve-task-start">
+<!-- ===== Voie 1 : taches via l'UI/API (enfants du parent officiel pvedaemon) ===== -->
+<decoder name="pve-task-ui-start">
   <parent>pvedaemon</parent>
   <prematch>starting task UPID:</prematch>
   <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):</regex>
   <order>pve_node,pve_task,pve_vmid,user,pve_realm</order>
 </decoder>
-
-<decoder name="pve-task-end">
+<decoder name="pve-task-ui-end">
   <parent>pvedaemon</parent>
   <prematch>end task UPID:</prematch>
   <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):\s+(.+)$</regex>
   <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
+</decoder>
+
+<!-- ===== Voie 2 : taches via CLI / vzdump / scheduler (nouveau parent) ===== -->
+<decoder name="pve-task-cli">
+  <program_name>^pct|^qm|^vzdump|^pvescheduler|^pvesr</program_name>
+  <prematch> task UPID:</prematch>
+</decoder>
+<decoder name="pve-task-cli-start">
+  <parent>pve-task-cli</parent>
+  <prematch>starting task UPID:</prematch>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):</regex>
+  <order>pve_node,pve_task,pve_vmid,user,pve_realm</order>
+</decoder>
+<decoder name="pve-task-cli-end">
+  <parent>pve-task-cli</parent>
+  <prematch>end task UPID:</prematch>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):\s+(.+)$</regex>
+  <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
+</decoder>
+
+<!-- ===== Cluster : pmxcfs ===== -->
+<decoder name="pve-pmxcfs">
+  <program_name>^pmxcfs</program_name>
+</decoder>
+<decoder name="pve-pmxcfs-msg">
+  <parent>pve-pmxcfs</parent>
+  <regex type="pcre2">^\[(\w+)\] (\w+): (.+)$</regex>
+  <order>pve_subsystem,pve_level,pve_msg</order>
 </decoder>

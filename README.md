@@ -5,10 +5,9 @@
 
 ## Le problème
 
-Le support Proxmox VE fourni d'origine avec Wazuh ne décode **que l'authentification** (`pvedaemon`) : 6 décodeurs, 4 règles. Conséquence : une **sauvegarde qui échoue**, une **VM supprimée**, un **accès console**, une **suppression massive de VM** (signature ransomware) — **rien de tout ça ne génère d'alerte**.
+Le support Proxmox VE fourni d'origine avec Wazuh ne décode **que l'authentification** (`pvedaemon`) : une **sauvegarde qui échoue**, une **VM/CT supprimé**, un **accès console**, une **suppression massive** (signature ransomware), une **perte de quorum** cluster — rien de tout ça ne génère d'alerte.
 
-Ce pack comble le trou en décodant les **tâches UPID** de Proxmox
-(`starting task UPID:…`, `end task UPID:… <statut>`), là où transite l'essentiel de l'activité d'administration.
+Ce pack comble le trou en décodant les **tâches UPID** de Proxmox et les messages **pmxcfs** (cluster). Point crucial vérifié sur un Proxmox VE 9.2 réel : les tâches sont journalisées sous des `program_name` **différents** selon l'origine — `pvedaemon` (UI/API web), mais `pct`/`qm` (CLI) et `vzdump`/`pvescheduler` (**sauvegardes, y compris planifiées**). Le pack couvre **les deux voies**, donc les backups et les actions en ligne de commande ne passent pas au travers.
 
 ## Ce que le pack détecte
 
@@ -16,15 +15,23 @@ Ce pack comble le trou en décodant les **tâches UPID** de Proxmox
 |---|---|:---:|---|
 | Suppression de VM/CT (`qmdestroy`, `vzdestroy`) | `100210` | 8 | T1485 — Data Destruction |
 | **Suppressions multiples corrélées** (ransomware / insider) | `100211` | **12** | T1485 |
-| **Échec de sauvegarde** (`vzdump`) | `100220` | 8 | T1490 — Inhibit System Recovery |
+| Suppression de snapshot (`qmdelsnapshot`, `vzdelsnapshot`) | `100213` | 6 | T1490 — Inhibit System Recovery |
+| **Échec de sauvegarde** (`vzdump`) | `100220` | 8 | T1490 |
 | Sauvegarde réussie | `100221` | 3 | — |
+| Restauration (`qmrestore`, `vzrestore`) | `100212` | 6 | — |
+| Migration (`qmigrate`, `vzmigrate`) | `100214` | 4 | — |
 | Accès console / shell (`vncshell`, `termproxy`…) | `100230` | 6 | T1021 — Remote Services |
+| **Perte de quorum** cluster (`pmxcfs`) | `100241` | 10 | — |
+| Erreur critique cluster (`pmxcfs`) | `100242` | 8 | — |
+| Rétablissement du quorum | `100243` | 3 | — |
+
+Couvre les tâches lancées via l'**UI/API** *et* via la **CLI/`vzdump`** (backups planifiés inclus).
 
 ## Prérequis
 
 - Wazuh **4.x** (validé sur **4.14.6**).
-- Les décodeurs officiels Proxmox de Wazuh (livrés d'origine — ce pack s'appuie dessus, il ne les remplace pas).
-- Les logs Proxmox transmis au manager Wazuh (voir plus bas).
+- Les décodeurs officiels Proxmox de Wazuh (livrés d'origine — le pack s'appuie sur `pvedaemon` pour la voie UI, il ne les remplace pas).
+- Les logs Proxmox transmis au manager Wazuh (voir plus bas). Validé sur **Proxmox VE 9.2** réel.
 
 ## Installation
 
@@ -39,11 +46,7 @@ Le script copie les fichiers, **valide la configuration** (`wazuh-analysisd -t`)
 ### Installation manuelle
 
 Copier `decoders/proxmox-pack_decoders.xml` dans `/var/ossec/etc/decoders/` et
-`rules/proxmox-pack_rules.xml` dans `/var/ossec/etc/rules/` (propriétaire `wazuh:wazuh`, mode `660`), puis :
-
-```bash
-/var/ossec/bin/wazuh-control restart
-```
+`rules/proxmox-pack_rules.xml` dans `/var/ossec/etc/rules/` (propriétaire `wazuh:wazuh`, mode `660`), puis `/var/ossec/bin/wazuh-control restart`.
 
 ## Tester sans Proxmox
 
@@ -53,20 +56,22 @@ while IFS= read -r line; do
 done < samples/proxmox-samples.log
 ```
 
-Vous verrez les décodeurs extraire `pve_task`, `pve_vmid`, `dstuser`, `pve_status`, et les règles se déclencher.
+Les samples couvrent les deux voies (UI `pvedaemon` et CLI `pct`/`vzdump`) et le cluster.
 
 ## Envoyer les logs Proxmox à Wazuh
 
-Deux approches :
+- **Agent Wazuh sur le nœud Proxmox** — lire `journald` via un bloc `<localfile>` (`log_format journald`) dans `ossec.conf`.
+- **Syslog distant** — configurer Proxmox pour émettre son syslog vers le manager Wazuh.
 
-- **Agent Wazuh sur le nœud Proxmox** — lire `journald` (ou `/var/log/daemon.log`) via un bloc `<localfile>` dans `ossec.conf`.
-- **Syslog distant** — configurer Proxmox pour émettre son syslog vers l'IP du manager Wazuh.
+## Tableau de bord
+
+Requêtes et visualisations prêtes à l'emploi dans [`dashboard/README.md`](dashboard/README.md).
 
 ## Feuille de route
 
-- Décodeurs `pveum` (création de comptes / **tokens API** — T1136 / T1098) et `pmxcfs` (perte de quorum cluster).
-- Dashboard Wazuh prêt à importer.
-- Détection du firewall Proxmox.
+- Décodeurs `pveum` (création de comptes / tokens API) — **à valider** : ces actions ne sont pas journalisées en syslog standard sur Proxmox VE (elles vivent dans les access logs `pveproxy`).
+- Détection du firewall Proxmox (`pve-firewall`).
+- Fichier `.ndjson` de dashboard importable.
 
 ## Aller plus loin
 

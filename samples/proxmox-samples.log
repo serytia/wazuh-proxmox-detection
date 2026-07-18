@@ -1,5 +1,15 @@
-Sep 10 22:13:44 pve1 pvedaemon[6427]: <root@pam> starting task UPID:pve1:00000000:11111111:22222222:vzstart:100:root@pam:
-Jul 17 09:00:00 pve1 pvedaemon[1234]: <admin@pve> starting task UPID:pve1:0000ABCD:00011111:66900000:qmdestroy:105:admin@pve:
-Jul 17 03:12:44 pve1 pvedaemon[9999]: <root@pam> end task UPID:pve1:000CD574:0088123B:5F800DB0:vzdump:124:root@pam: job errors
-Jul 17 04:00:00 pve1 pvedaemon[9999]: <root@pam> end task UPID:pve1:000CD574:0088123B:5F800DB0:vzdump:124:root@pam: OK
-Jul 17 10:00:00 pve1 pvedaemon[3333]: <admin@pve> starting task UPID:pve1:0000FFFF:00011111:66900000:vncshell::root@pam:
+# Exemples de logs Proxmox VE (lignes reelles capturees sur PVE 9.2 + variantes).
+# Test : while IFS= read -r l; do echo "$l" | /var/ossec/bin/wazuh-logtest; done < proxmox-samples.log
+
+# --- Voie UI / API (program_name pvedaemon) ---
+Sep 10 22:13:44 pve pvedaemon[6427]: <root@pam> starting task UPID:pve:00000000:11111111:22222222:vncshell::root@pam:
+# --- Voie CLI (program_name pct/qm) ---
+Jul 18 15:56:43 pve pct[95595]: <root@pam> starting task UPID:pve:0001756D:0015D743:6A5B861B:vzdestroy:999:root@pam:
+Jul 18 15:56:40 pve pct[95586]: <root@pam> starting task UPID:pve:00017564:0015D61A:6A5B8618:vzdelsnapshot:999:root@pam:
+# --- Sauvegardes (program_name vzdump) : succes et echec ---
+Jul 18 15:56:37 pve vzdump[95498]: <root@pam> end task UPID:pve:0001750C:0015D0A7:6A5B860A:vzdump:999:root@pam: OK
+Jul 18 03:12:44 pve vzdump[9999]: <root@pam> end task UPID:pve:000CD574:0088123B:5F800DB0:vzdump:124:root@pam: job errors
+# --- Cluster (program_name pmxcfs) ---
+Oct 17 10:28:06 pve pmxcfs[645]: [status] notice: node lost quorum
+Oct 17 10:30:00 pve pmxcfs[645]: [status] notice: node has quorum
+Oct 17 10:28:06 pve pmxcfs[645]: [dcdb] crit: received write while not quorate - trigger resync
