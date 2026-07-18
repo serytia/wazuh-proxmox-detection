@@ -71,7 +71,6 @@ Requêtes et visualisations prêtes à l'emploi dans [`dashboard/README.md`](das
 
 - Décodeurs `pveum` (création de comptes / tokens API) — **à valider** : ces actions ne sont pas journalisées en syslog standard sur Proxmox VE (elles vivent dans les access logs `pveproxy`).
 - Détection du firewall Proxmox (`pve-firewall`).
-- Fichier `.ndjson` de dashboard importable.
 
 ## Aller plus loin
 

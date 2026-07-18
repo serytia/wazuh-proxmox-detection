@@ -31,9 +31,22 @@ Champs décodés exploitables : `data.pve_task`, `data.pve_vmid`, `data.pve_stat
 | Santé du quorum | Table | `rule.groups: "pve_cluster"` |
 | Journal des alertes | Saved search | colonnes `rule.level`, `rule.description`, `data.pve_task`, `data.pve_vmid`, `data.dstuser`, `agent.name` |
 
-## Import « 1-clic » (à venir)
+## Import « 1-clic »
 
-Un fichier `.ndjson` importable (*Stack Management → Saved Objects → Import*) sera fourni une
-fois **validé sur un vrai Wazuh Dashboard** : l'ID de l'index-pattern `wazuh-alerts-*` diffère
-d'une installation à l'autre, il doit être calé sur l'instance cible sous peine d'import cassé.
-Le mien n'exécute que le *manager* (assez pour tester la détection, pas pour valider un dashboard).
+Le dashboard **« Proxmox VE - Detection (pack) »** est fourni prêt à importer :
+[`pve-dashboard.ndjson`](pve-dashboard.ndjson) — compteur, camembert MITRE ATT&CK, timeline par
+niveau de sévérité, top utilisateurs (« qui agit »), et table des alertes. **Validé sur Wazuh
+Dashboard 4.14 / OpenSearch Dashboards 2.19.**
+
+- **Via l'UI** : *Dashboards Management → Saved Objects → Import* → `pve-dashboard.ndjson` →
+  *Import* (coche « overwrite »). Ouvre ensuite « Proxmox VE - Detection (pack) » et règle le
+  time picker sur *Last 24 hours*.
+- **Via l'API** :
+  ```bash
+  curl -sk -u admin:PASS -H "osd-xsrf: true" \
+    -F file=@pve-dashboard.ndjson \
+    "https://VOTRE-DASHBOARD/api/saved_objects/_import?overwrite=true"
+  ```
+
+Il référence l'index-pattern `wazuh-alerts-*` (ID par défaut de Wazuh). Si ton installation
+utilise un autre ID, adapte la référence dans le `.ndjson`.
