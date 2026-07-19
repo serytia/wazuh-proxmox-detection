@@ -9,6 +9,8 @@ Le support Proxmox VE fourni d'origine avec Wazuh ne décode **que l'authentific
 
 Ce pack comble le trou en décodant les **tâches UPID** de Proxmox et les messages **pmxcfs** (cluster). Point crucial vérifié sur un Proxmox VE 9.2 réel : les tâches sont journalisées sous des `program_name` **différents** selon l'origine — `pvedaemon` (UI/API web), mais `pct`/`qm` (CLI) et `vzdump`/`pvescheduler` (**sauvegardes, y compris planifiées**). Le pack couvre **les deux voies**, donc les backups et les actions en ligne de commande ne passent pas au travers.
 
+> **Making-of** — le montage du lab (Proxmox VE + Wazuh), les pièges, et le défaut `program_name` débusqué au test réel : [le récit complet sur rhnetwork.xyz](https://rhnetwork.xyz/blog/proxmox-wazuh-angle-mort/).
+
 ## Ce que le pack détecte
 
 | Événement Proxmox | Règle | Niveau | MITRE ATT&CK |
