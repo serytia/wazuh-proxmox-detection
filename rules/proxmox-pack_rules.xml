@@ -1,44 +1,44 @@
-<!-- Proxmox VE detection pack - regles (plage locale 100200+) -->
-<!-- Les taches sont captees par 2 voies : 87200 (regle officielle pvedaemon, UI/API)
-     et 100201 (parent CLI/vzdump de ce pack). Les regles enfant s'accrochent aux deux. -->
+<!-- Proxmox VE detection pack - rules (local range 100200+) -->
+<!-- Tasks are caught via 2 paths: 87200 (official pvedaemon rule, UI/API)
+     and 100201 (this pack's CLI/vzdump parent). Child rules attach to both. -->
 
 <group name="proxmox-ve,proxmox-pack,">
 
-  <!-- Parent des taches via CLI / vzdump / scheduler -->
+  <!-- Parent for tasks via CLI / vzdump / scheduler -->
   <rule id="100201" level="0">
     <decoded_as>pve-task-cli</decoded_as>
-    <description>Proxmox VE: tache (UPID) via CLI - groupe.</description>
+    <description>Proxmox VE: task (UPID) via CLI - grouped.</description>
   </rule>
 
-  <!-- ===== Suppression / ransomware ===== -->
+  <!-- ===== Deletion / ransomware ===== -->
   <rule id="100210" level="8">
     <if_sid>87200,100201</if_sid>
     <field name="pve_task" type="pcre2">^(qmdestroy|vzdestroy)$</field>
-    <description>Proxmox VE: suppression de VM/CT $(pve_vmid) par $(dstuser)</description>
+    <description>Proxmox VE: VM/CT $(pve_vmid) deleted by $(dstuser)</description>
     <mitre><id>T1485</id></mitre>
     <group>pve_destroy,</group>
   </rule>
   <rule id="100211" level="12" frequency="4" timeframe="180">
     <if_matched_sid>100210</if_matched_sid>
     <same_user />
-    <description>Proxmox VE: suppressions multiples de VM/CT par $(dstuser) - possible ransomware/insider</description>
+    <description>Proxmox VE: multiple VM/CT deletions by $(dstuser) - possible ransomware/insider</description>
     <mitre><id>T1485</id></mitre>
     <group>pve_destroy,</group>
   </rule>
   <rule id="100213" level="6">
     <if_sid>87200,100201</if_sid>
     <field name="pve_task" type="pcre2">^(qmdelsnapshot|vzdelsnapshot)$</field>
-    <description>Proxmox VE: suppression de snapshot VM/CT $(pve_vmid) par $(dstuser)</description>
+    <description>Proxmox VE: snapshot of VM/CT $(pve_vmid) deleted by $(dstuser)</description>
     <mitre><id>T1490</id></mitre>
     <group>pve_snapshot_delete,</group>
   </rule>
 
-  <!-- ===== Sauvegarde vzdump ===== -->
+  <!-- ===== vzdump backup ===== -->
   <rule id="100220" level="8">
     <if_sid>87200,100201</if_sid>
     <field name="pve_task">^vzdump$</field>
     <field name="pve_status" type="pcre2">^(?!OK$).+</field>
-    <description>Proxmox VE: ECHEC de sauvegarde (vzdump) VM/CT $(pve_vmid) - statut: $(pve_status)</description>
+    <description>Proxmox VE: backup FAILED (vzdump) for VM/CT $(pve_vmid) - status: $(pve_status)</description>
     <mitre><id>T1490</id></mitre>
     <group>pve_backup_failed,</group>
   </rule>
@@ -46,52 +46,52 @@
     <if_sid>87200,100201</if_sid>
     <field name="pve_task">^vzdump$</field>
     <field name="pve_status">^OK$</field>
-    <description>Proxmox VE: sauvegarde (vzdump) VM/CT $(pve_vmid) terminee OK</description>
+    <description>Proxmox VE: backup (vzdump) of VM/CT $(pve_vmid) completed OK</description>
     <group>pve_backup_ok,</group>
   </rule>
 
-  <!-- ===== Restauration / migration / console ===== -->
+  <!-- ===== Restore / migration / console ===== -->
   <rule id="100212" level="6">
     <if_sid>87200,100201</if_sid>
     <field name="pve_task" type="pcre2">^(qmrestore|vzrestore)$</field>
-    <description>Proxmox VE: restauration de VM/CT $(pve_vmid) par $(dstuser)</description>
+    <description>Proxmox VE: VM/CT $(pve_vmid) restored by $(dstuser)</description>
     <group>pve_restore,</group>
   </rule>
   <rule id="100214" level="4">
     <if_sid>87200,100201</if_sid>
     <field name="pve_task" type="pcre2">^(qmigrate|vzmigrate)$</field>
-    <description>Proxmox VE: migration de VM/CT $(pve_vmid) par $(dstuser)</description>
+    <description>Proxmox VE: VM/CT $(pve_vmid) migrated by $(dstuser)</description>
     <group>pve_migrate,</group>
   </rule>
   <rule id="100230" level="6">
     <if_sid>87200,100201</if_sid>
     <field name="pve_task" type="pcre2">^(vncshell|vncproxy|termproxy|spiceshell|spiceproxy)$</field>
-    <description>Proxmox VE: ouverture de console/shell ($(pve_task)) par $(dstuser)</description>
+    <description>Proxmox VE: console/shell opened ($(pve_task)) by $(dstuser)</description>
     <mitre><id>T1021</id></mitre>
   </rule>
 
   <!-- ===== Cluster (pmxcfs) ===== -->
   <rule id="100240" level="2">
     <decoded_as>pve-pmxcfs</decoded_as>
-    <description>Proxmox VE cluster (pmxcfs): message groupe.</description>
+    <description>Proxmox VE cluster (pmxcfs): grouped message.</description>
     <group>pve_cluster,</group>
   </rule>
   <rule id="100241" level="10">
     <if_sid>100240</if_sid>
     <field name="pve_msg" type="pcre2">lost quorum</field>
-    <description>Proxmox VE: PERTE de quorum du cluster (noeud isole)</description>
+    <description>Proxmox VE: cluster quorum LOST (node isolated)</description>
     <group>pve_cluster,availability,</group>
   </rule>
   <rule id="100242" level="8">
     <if_sid>100240</if_sid>
     <field name="pve_level">^crit$</field>
-    <description>Proxmox VE: erreur critique cluster (pmxcfs) - $(pve_msg)</description>
+    <description>Proxmox VE: cluster critical error (pmxcfs) - $(pve_msg)</description>
     <group>pve_cluster,</group>
   </rule>
   <rule id="100243" level="3">
     <if_sid>100240</if_sid>
     <field name="pve_msg" type="pcre2">has quorum</field>
-    <description>Proxmox VE: quorum du cluster retabli</description>
+    <description>Proxmox VE: cluster quorum restored</description>
     <group>pve_cluster,</group>
   </rule>
 

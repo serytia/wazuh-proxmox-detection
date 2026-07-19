@@ -1,10 +1,10 @@
-<!-- Proxmox VE detection pack - decodeurs -->
-<!-- Les taches Proxmox sont journalisees sous des program_name differents selon l'origine
-     (verifie sur Proxmox VE 9.2). Il faut donc DEUX voies de decodage :
-       - UI / API web -> program_name "pvedaemon" (decodeur officiel existant) : on greffe des enfants dessus.
-       - CLI pct/qm, vzdump (backups, y c. planifies), pvescheduler/pvesr : nouveau parent dedie. -->
+<!-- Proxmox VE detection pack - decoders -->
+<!-- Proxmox tasks are logged under different program_name values depending on origin
+     (verified on Proxmox VE 9.2). Two decoding paths are therefore needed:
+       - UI / web API -> program_name "pvedaemon" (existing official decoder): children attached to it.
+       - CLI pct/qm, vzdump (backups, incl. scheduled), pvescheduler/pvesr: dedicated new parent. -->
 
-<!-- ===== Voie 1 : taches via l'UI/API (enfants du parent officiel pvedaemon) ===== -->
+<!-- ===== Path 1: tasks via the UI/API (children of the official pvedaemon parent) ===== -->
 <decoder name="pve-task-ui-start">
   <parent>pvedaemon</parent>
   <prematch>starting task UPID:</prematch>
@@ -18,7 +18,7 @@
   <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
 </decoder>
 
-<!-- ===== Voie 2 : taches via CLI / vzdump / scheduler (nouveau parent) ===== -->
+<!-- ===== Path 2: tasks via CLI / vzdump / scheduler (new parent) ===== -->
 <decoder name="pve-task-cli">
   <program_name>^pct|^qm|^vzdump|^pvescheduler|^pvesr</program_name>
   <prematch> task UPID:</prematch>
@@ -36,7 +36,7 @@
   <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
 </decoder>
 
-<!-- ===== Cluster : pmxcfs ===== -->
+<!-- ===== Cluster: pmxcfs ===== -->
 <decoder name="pve-pmxcfs">
   <program_name>^pmxcfs</program_name>
 </decoder>

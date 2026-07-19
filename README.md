@@ -1,39 +1,38 @@
 # Wazuh Detection Pack — Proxmox VE
 
-> Règles et décodeurs Wazuh pour **Proxmox VE**, au-delà de l'authentification.
-> *Wazuh detection rules & decoders for Proxmox VE — beyond authentication.*
+> Wazuh rules & decoders for **Proxmox VE** — beyond authentication.
 
-## Le problème
+## The problem
 
-Le support Proxmox VE fourni d'origine avec Wazuh ne décode **que l'authentification** (`pvedaemon`) : une **sauvegarde qui échoue**, une **VM/CT supprimé**, un **accès console**, une **suppression massive** (signature ransomware), une **perte de quorum** cluster — rien de tout ça ne génère d'alerte.
+Wazuh's out-of-the-box Proxmox VE support decodes **only authentication** (`pvedaemon`): a **failed backup**, a **deleted VM/CT**, **console access**, a **mass deletion** (ransomware signature), a cluster **quorum loss** — none of it raises an alert.
 
-Ce pack comble le trou en décodant les **tâches UPID** de Proxmox et les messages **pmxcfs** (cluster). Point crucial vérifié sur un Proxmox VE 9.2 réel : les tâches sont journalisées sous des `program_name` **différents** selon l'origine — `pvedaemon` (UI/API web), mais `pct`/`qm` (CLI) et `vzdump`/`pvescheduler` (**sauvegardes, y compris planifiées**). Le pack couvre **les deux voies**, donc les backups et les actions en ligne de commande ne passent pas au travers.
+This pack fills the gap by decoding Proxmox **UPID tasks** and **pmxcfs** (cluster) messages. A key point verified on a real Proxmox VE 9.2: tasks are logged under **different** `program_name` values depending on origin — `pvedaemon` (web UI/API), but `pct`/`qm` (CLI) and `vzdump`/`pvescheduler` (**backups, including scheduled ones**). The pack covers **both paths**, so backups and command-line actions don't slip through.
 
-> **Making-of** — le montage du lab (Proxmox VE + Wazuh), les pièges, et le défaut `program_name` débusqué au test réel : [le récit complet sur rhnetwork.xyz](https://rhnetwork.xyz/blog/proxmox-wazuh-angle-mort/).
+> **Making-of** — building the lab (Proxmox VE + Wazuh), the pitfalls, and the `program_name` flaw caught during real testing: [full write-up on rhnetwork.xyz](https://rhnetwork.xyz/blog/proxmox-wazuh-angle-mort/) *(in French)*.
 
-## Ce que le pack détecte
+## What the pack detects
 
-| Événement Proxmox | Règle | Niveau | MITRE ATT&CK |
+| Proxmox event | Rule | Level | MITRE ATT&CK |
 |---|---|:---:|---|
-| Suppression de VM/CT (`qmdestroy`, `vzdestroy`) | `100210` | 8 | T1485 — Data Destruction |
-| **Suppressions multiples corrélées** (ransomware / insider) | `100211` | **12** | T1485 |
-| Suppression de snapshot (`qmdelsnapshot`, `vzdelsnapshot`) | `100213` | 6 | T1490 — Inhibit System Recovery |
-| **Échec de sauvegarde** (`vzdump`) | `100220` | 8 | T1490 |
-| Sauvegarde réussie | `100221` | 3 | — |
-| Restauration (`qmrestore`, `vzrestore`) | `100212` | 6 | — |
+| VM/CT deletion (`qmdestroy`, `vzdestroy`) | `100210` | 8 | T1485 — Data Destruction |
+| **Correlated multiple deletions** (ransomware / insider) | `100211` | **12** | T1485 |
+| Snapshot deletion (`qmdelsnapshot`, `vzdelsnapshot`) | `100213` | 6 | T1490 — Inhibit System Recovery |
+| **Backup failure** (`vzdump`) | `100220` | 8 | T1490 |
+| Backup success | `100221` | 3 | — |
+| Restore (`qmrestore`, `vzrestore`) | `100212` | 6 | — |
 | Migration (`qmigrate`, `vzmigrate`) | `100214` | 4 | — |
-| Accès console / shell (`vncshell`, `termproxy`…) | `100230` | 6 | T1021 — Remote Services |
-| **Perte de quorum** cluster (`pmxcfs`) | `100241` | 10 | — |
-| Erreur critique cluster (`pmxcfs`) | `100242` | 8 | — |
-| Rétablissement du quorum | `100243` | 3 | — |
+| Console / shell access (`vncshell`, `termproxy`…) | `100230` | 6 | T1021 — Remote Services |
+| Cluster **quorum loss** (`pmxcfs`) | `100241` | 10 | — |
+| Cluster critical error (`pmxcfs`) | `100242` | 8 | — |
+| Quorum restored | `100243` | 3 | — |
 
-Couvre les tâches lancées via l'**UI/API** *et* via la **CLI/`vzdump`** (backups planifiés inclus).
+Covers tasks launched via the **UI/API** *and* via the **CLI/`vzdump`** (scheduled backups included).
 
-## Prérequis
+## Requirements
 
-- Wazuh **4.x** (validé sur **4.14.6**).
-- Les décodeurs officiels Proxmox de Wazuh (livrés d'origine — le pack s'appuie sur `pvedaemon` pour la voie UI, il ne les remplace pas).
-- Les logs Proxmox transmis au manager Wazuh (voir plus bas). Validé sur **Proxmox VE 9.2** réel.
+- Wazuh **4.x** (validated on **4.14.6**).
+- Wazuh's official Proxmox decoders (shipped by default — the pack builds on `pvedaemon` for the UI path, it does not replace them).
+- Proxmox logs forwarded to the Wazuh manager (see below). Validated on a real **Proxmox VE 9.2**.
 
 ## Installation
 
@@ -43,14 +42,14 @@ cd wazuh-proxmox-detection
 sudo ./install.sh
 ```
 
-Le script copie les fichiers, **valide la configuration** (`wazuh-analysisd -t`) puis redémarre Wazuh. Rollback : `sudo ./uninstall.sh`.
+The script copies the files, **validates the configuration** (`wazuh-analysisd -t`), then restarts Wazuh. Rollback: `sudo ./uninstall.sh`.
 
-### Installation manuelle
+### Manual installation
 
-Copier `decoders/proxmox-pack_decoders.xml` dans `/var/ossec/etc/decoders/` et
-`rules/proxmox-pack_rules.xml` dans `/var/ossec/etc/rules/` (propriétaire `wazuh:wazuh`, mode `660`), puis `/var/ossec/bin/wazuh-control restart`.
+Copy `decoders/proxmox-pack_decoders.xml` to `/var/ossec/etc/decoders/` and
+`rules/proxmox-pack_rules.xml` to `/var/ossec/etc/rules/` (owner `wazuh:wazuh`, mode `660`), then `/var/ossec/bin/wazuh-control restart`.
 
-## Tester sans Proxmox
+## Test without Proxmox
 
 ```bash
 while IFS= read -r line; do
@@ -58,26 +57,26 @@ while IFS= read -r line; do
 done < samples/proxmox-samples.log
 ```
 
-Les samples couvrent les deux voies (UI `pvedaemon` et CLI `pct`/`vzdump`) et le cluster.
+The samples cover both paths (UI `pvedaemon` and CLI `pct`/`vzdump`) and the cluster.
 
-## Envoyer les logs Proxmox à Wazuh
+## Send Proxmox logs to Wazuh
 
-- **Agent Wazuh sur le nœud Proxmox** — lire `journald` via un bloc `<localfile>` (`log_format journald`) dans `ossec.conf`.
-- **Syslog distant** — configurer Proxmox pour émettre son syslog vers le manager Wazuh.
+- **Wazuh agent on the Proxmox node** — read `journald` via a `<localfile>` block (`log_format journald`) in `ossec.conf`.
+- **Remote syslog** — configure Proxmox to emit its syslog to the Wazuh manager.
 
-## Tableau de bord
+## Dashboard
 
-Requêtes et visualisations prêtes à l'emploi dans [`dashboard/README.md`](dashboard/README.md).
+Ready-to-use queries and visualizations in [`dashboard/README.md`](dashboard/README.md).
 
-## Feuille de route
+## Roadmap
 
-- Décodeurs `pveum` (création de comptes / tokens API) — **à valider** : ces actions ne sont pas journalisées en syslog standard sur Proxmox VE (elles vivent dans les access logs `pveproxy`).
-- Détection du firewall Proxmox (`pve-firewall`).
+- `pveum` decoders (account / API token creation) — **to confirm**: these actions are not logged to standard syslog on Proxmox VE (they live in the `pveproxy` access logs).
+- Proxmox firewall detection (`pve-firewall`).
 
-## Aller plus loin
+## Going further
 
-Ce pack couvre Proxmox. Pour **brancher la détection sur toute votre stack** (pare-feux, Microsoft 365, sauvegardes…), un **déploiement clé en main**, ou une version **white-label pour MSP/MSSP** : ouvrez une **[issue](../../issues)** ou contactez **[@serytia](https://github.com/serytia)**.
+This pack covers Proxmox. To **wire detection across your whole stack** (firewalls, Microsoft 365, backups…), a **turnkey deployment**, or a **white-label build for MSP/MSSP**: open an **[issue](../../issues)** or reach out to **[@serytia](https://github.com/serytia)**.
 
-## Licence
+## License
 
-**GPLv2** — cohérent avec le ruleset Wazuh. Voir [LICENSE](LICENSE).
+**GPLv2** — consistent with the Wazuh ruleset. See [LICENSE](LICENSE).
