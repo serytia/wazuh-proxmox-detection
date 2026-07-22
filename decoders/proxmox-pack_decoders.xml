@@ -2,19 +2,23 @@
 <!-- Proxmox tasks are logged under different program_name values depending on origin
      (verified on Proxmox VE 9.2). Two decoding paths are therefore needed:
        - UI / web API -> program_name "pvedaemon" (existing official decoder): children attached to it.
-       - CLI pct/qm, vzdump (backups, incl. scheduled), pvescheduler/pvesr: dedicated new parent. -->
+       - CLI pct/qm, vzdump (backups, incl. scheduled), pvescheduler/pvesr: dedicated new parent.
+     The UPID trailer is user@realm, but the realm may be followed by an API-token id
+     (user@realm!tokenid) and may itself contain '.' or '-' (LDAP/AD realm names), so the
+     realm is matched as [^:!]+ with an optional !token suffix -- NOT \w+, which would
+     stop at '!'/'.'/'-' and, being anchored, drop EVERY field of the line. -->
 
 <!-- ===== Path 1: tasks via the UI/API (children of the official pvedaemon parent) ===== -->
 <decoder name="pve-task-ui-start">
   <parent>pvedaemon</parent>
   <prematch>starting task UPID:</prematch>
-  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):</regex>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@([^:!]+)(?:![^:]*)?:</regex>
   <order>pve_node,pve_task,pve_vmid,user,pve_realm</order>
 </decoder>
 <decoder name="pve-task-ui-end">
   <parent>pvedaemon</parent>
   <prematch>end task UPID:</prematch>
-  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):\s+(.+)$</regex>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@([^:!]+)(?:![^:]*)?:\s+(.+)$</regex>
   <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
 </decoder>
 
@@ -26,13 +30,13 @@
 <decoder name="pve-task-cli-start">
   <parent>pve-task-cli</parent>
   <prematch>starting task UPID:</prematch>
-  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):</regex>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@([^:!]+)(?:![^:]*)?:</regex>
   <order>pve_node,pve_task,pve_vmid,user,pve_realm</order>
 </decoder>
 <decoder name="pve-task-cli-end">
   <parent>pve-task-cli</parent>
   <prematch>end task UPID:</prematch>
-  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@(\w+):\s+(.+)$</regex>
+  <regex type="pcre2" offset="after_prematch">^([^:]+):[^:]+:[^:]+:[^:]+:(\w+):([^:]*):([^@:]+)@([^:!]+)(?:![^:]*)?:\s+(.+)$</regex>
   <order>pve_node,pve_task,pve_vmid,user,pve_realm,pve_status</order>
 </decoder>
 

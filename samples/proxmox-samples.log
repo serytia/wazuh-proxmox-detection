@@ -6,6 +6,10 @@ Sep 10 22:13:44 pve pvedaemon[6427]: <root@pam> starting task UPID:pve:00000000:
 # --- CLI path (program_name pct/qm) ---
 Jul 18 15:56:43 pve pct[95595]: <root@pam> starting task UPID:pve:0001756D:0015D743:6A5B861B:vzdestroy:999:root@pam:
 Jul 18 15:56:40 pve pct[95586]: <root@pam> starting task UPID:pve:00017564:0015D61A:6A5B8618:vzdelsnapshot:999:root@pam:
+# --- CLI path, destructive task run via an API TOKEN (root@pam!tokenid) - Terraform/Ansible or a stolen token ---
+Jul 18 16:02:11 pve qm[96010]: <root@pam!terraform> starting task UPID:pve:00017700:0015E100:6A5B8700:qmdestroy:100:root@pam!terraform:
+# --- CLI path, non-pam realm containing a dot (LDAP/AD) ---
+Jul 18 16:05:30 pve pct[96120]: <svc@ad.corp.local> starting task UPID:pve:00017800:0015E400:6A5B8800:vzdestroy:101:svc@ad.corp.local:
 # --- Backups (program_name vzdump): success and failure ---
 Jul 18 15:56:37 pve vzdump[95498]: <root@pam> end task UPID:pve:0001750C:0015D0A7:6A5B860A:vzdump:999:root@pam: OK
 Jul 18 03:12:44 pve vzdump[9999]: <root@pam> end task UPID:pve:000CD574:0088123B:5F800DB0:vzdump:124:root@pam: job errors
